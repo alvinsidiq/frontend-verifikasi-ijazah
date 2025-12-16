@@ -12,7 +12,7 @@ export default function AppLayout({ children }) {
       {/* Main content */}
       <div className="flex-1 flex flex-col">
         {/* Topbar sederhana */}
-        <header className="h-14 border-b bg-white flex items-center px-4">
+        <header className="h-14 border-b bg-blackflex items-center px-4">
           <h1 className="font-semibold text-lg">
             Sistem Verifikasi Ijazah
           </h1>
