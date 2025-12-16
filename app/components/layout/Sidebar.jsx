@@ -6,7 +6,7 @@ import Link from "next/link";
 export default function Sidebar() {
   // Untuk sesi 0, menu masih statis (belum baca role)
   return (
-    <aside className="w-64 bg-white border-r min-h-screen hidden md:block">
+    <aside className="w-64 bg-blackborder-r min-h-screen hidden md:block">
       <div className="h-14 flex items-center justify-center border-b">
         <span className="font-bold text-sm">
           Verifikasi Ijazah
