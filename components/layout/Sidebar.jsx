@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { getAuth } from "../../lib/auth";
+import { getAuth, normalizeRole } from "../../lib/auth";
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -11,7 +11,7 @@ export default function Sidebar() {
 
   useEffect(() => {
     const auth = getAuth();
-    setRole(auth?.user?.role || null);
+    setRole(normalizeRole(auth?.user?.role) || null);
   }, []);
 
   return (

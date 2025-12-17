@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { saveAuth, getAuth } from "../../lib/auth";
+import { saveAuth, getAuth, normalizeRole } from "../../lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,7 +18,7 @@ export default function LoginPage() {
   useEffect(() => {
     const auth = getAuth();
     if (auth?.user) {
-      const role = auth.user.role;
+      const role = normalizeRole(auth.user.role);
       if (role === "ADMIN") {
         router.replace("/admin/dashboard");
       } else if (role === "VALIDATOR") {
@@ -68,9 +68,10 @@ export default function LoginPage() {
       saveAuth(token, user);
 
       // Redirect berdasarkan role
-      if (user.role === "ADMIN") {
+      const role = normalizeRole(user.role);
+      if (role === "ADMIN") {
         router.push("/admin/dashboard");
-      } else if (user.role === "VALIDATOR") {
+      } else if (role === "VALIDATOR") {
         router.push("/validator/dashboard");
       } else {
         router.push("/mahasiswa/dashboard");

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { getAuth } from "../../lib/auth";
+import { getAuth, normalizeRole } from "../../lib/auth";
 
 export default function RequireRole({ allowedRoles, children }) {
   const router = useRouter();
@@ -13,6 +13,11 @@ export default function RequireRole({ allowedRoles, children }) {
 
   useEffect(() => {
     const auth = getAuth();
+    const normalizedRole = normalizeRole(auth?.user?.role);
+    const allowed =
+      allowedRoles && allowedRoles.length > 0
+        ? allowedRoles.map(normalizeRole)
+        : null;
 
     // Belum login → paksa ke /login
     if (!auth || !auth.user) {
@@ -20,18 +25,16 @@ export default function RequireRole({ allowedRoles, children }) {
       return;
     }
 
-    const role = auth.user.role;
-
     // Kalau allowedRoles tidak diisi, berarti cukup login saja
-    if (!allowedRoles || allowedRoles.length === 0) {
+    if (!allowed) {
       setIsAllowed(true);
       setIsChecking(false);
       return;
     }
 
     // Kalau role tidak ada di allowedRoles → redirect ke dashboard sesuai role
-    if (!allowedRoles.includes(role)) {
-      redirectToRoleDashboard(role, router);
+    if (!normalizedRole || !allowed.includes(normalizedRole)) {
+      redirectToRoleDashboard(normalizedRole, router);
       return;
     }
 
@@ -62,7 +65,9 @@ function redirectToRoleDashboard(role, router) {
     router.replace("/admin/dashboard");
   } else if (role === "VALIDATOR") {
     router.replace("/validator/dashboard");
-  } else {
+  } else if (role === "MAHASISWA") {
     router.replace("/mahasiswa/dashboard");
+  } else {
+    router.replace("/login");
   }
 }
