@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "./Sidebar";
-import { getAuth, clearAuth } from "../../lib/auth";
+import { getAuth, clearAuth, normalizeRole } from "../../lib/auth";
 
 export default function AppLayout({ children }) {
   const router = useRouter();
@@ -41,7 +41,7 @@ export default function AppLayout({ children }) {
                   {user.name}
                 </div>
                 <div className="text-xs text-gray-500">
-                  {user.role}
+                  {normalizeRole(user.role) || user.role}
                 </div>
               </div>
             )}
