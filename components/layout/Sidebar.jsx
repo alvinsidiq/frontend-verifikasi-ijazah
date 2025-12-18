@@ -55,6 +55,11 @@ export default function Sidebar() {
               label="Ijazah"
               activePath={pathname}
             />
+            <NavItem
+              href="/admin/status-validasi"
+              label="Status Validasi"
+              activePath={pathname}
+            />
           </div>
         )}
 
