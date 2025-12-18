@@ -35,8 +35,17 @@ export default function Sidebar() {
             <p className="text-xs font-semibold text-gray-500 uppercase mb-1">
               Admin
             </p>
-            <NavItem href="/admin/dashboard" label="Dashboard" activePath={pathname} />
-            {/* Nanti ditambah: /admin/program-studi, /admin/mahasiswa, /admin/ijazah */}
+            <NavItem
+              href="/admin/dashboard"
+              label="Dashboard"
+              activePath={pathname}
+            />
+            <NavItem
+              href="/admin/program-studi"
+              label="Program Studi"
+              activePath={pathname}
+            />
+            {/* nanti tambah lagi: Mahasiswa, Ijazah */}
           </div>
         )}
 
