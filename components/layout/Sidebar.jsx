@@ -45,6 +45,11 @@ export default function Sidebar() {
               label="Program Studi"
               activePath={pathname}
             />
+            <NavItem
+              href="/admin/mahasiswa"
+              label="Mahasiswa"
+              activePath={pathname}
+            />
             {/* nanti tambah lagi: Mahasiswa, Ijazah */}
           </div>
         )}
