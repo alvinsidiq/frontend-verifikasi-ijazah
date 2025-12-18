@@ -85,27 +85,27 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
-      <div className="bg-blackrounded-xl shadow p-8 w-full max-w-sm">
+    <main className="min-h-screen flex items-center justify-center bg-gray-100 px-4 text-black">
+      <div className="bg-white rounded-xl shadow p-8 w-full max-w-sm">
         <h1 className="text-xl font-bold mb-2 text-black">
           Login Sistem Verifikasi Ijazah
         </h1>
-        <p className="text-sm text-gray-500 mb-6">
+        <p className="text-sm text-black mb-6">
           Masuk sebagai Admin, Validator, atau Mahasiswa.
         </p>
 
         {errorMsg && (
-          <div className="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+          <div className="mb-4 text-sm text-black bg-red-50 border border-red-200 rounded-md px-3 py-2">
             {errorMsg}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1">
+          <div className="space-y-1 text-black">
             <label className="text-sm font-medium text-black">Email</label>
             <input
               type="email"
-              className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring focus:ring-blue-100"
+              className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring focus:ring-blue-100 text-black"
               placeholder="admin@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -113,11 +113,11 @@ export default function LoginPage() {
             />
           </div>
 
-          <div className="space-y-1">
+          <div className="space-y-1 text-black">
             <label className="text-sm font-medium text-black">Password</label>
             <input
               type="password"
-              className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring focus:ring-blue-100"
+              className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring focus:ring-blue-100 text-black"
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -134,7 +134,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="mt-4 text-xs text-gray-400">
+        <p className="mt-4 text-xs text-black">
           Backend API: {process.env.NEXT_PUBLIC_API_BASE_URL}
         </p>
       </div>
