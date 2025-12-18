@@ -60,6 +60,11 @@ export default function Sidebar() {
               label="Status Validasi"
               activePath={pathname}
             />
+            <NavItem
+              href="/admin/generate-qrcode"
+              label="Generate QR Code"
+              activePath={pathname}
+            />
           </div>
         )}
 
