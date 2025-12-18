@@ -50,7 +50,11 @@ export default function Sidebar() {
               label="Mahasiswa"
               activePath={pathname}
             />
-            {/* nanti tambah lagi: Mahasiswa, Ijazah */}
+            <NavItem
+              href="/admin/ijazah"
+              label="Ijazah"
+              activePath={pathname}
+            />
           </div>
         )}
 

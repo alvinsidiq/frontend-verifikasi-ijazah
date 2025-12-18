@@ -1,0 +1,233 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import AppLayout from "../../../../../components/layout/AppLayout";
+import RequireRole from "../../../../../components/auth/RequireRole";
+import { apiGet, apiPut } from "../../../../../lib/api";
+
+export default function IjazahEditPage() {
+  const router = useRouter();
+  const params = useParams();
+  const { id } = params;
+
+  const [mahasiswaOptions, setMahasiswaOptions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const [mahasiswaId, setMahasiswaId] = useState("");
+  const [nomorIjazah, setNomorIjazah] = useState("");
+  const [tanggalLulus, setTanggalLulus] = useState("");
+  const [ipk, setIpk] = useState("");
+  const [judulTA, setJudulTA] = useState("");
+  const [status, setStatus] = useState("DRAFT");
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        setLoading(true);
+        const [detailRes, mhsRes] = await Promise.all([
+          apiGet(`/ijazah/${id}`),
+          apiGet("/mahasiswa"),
+        ]);
+        const data = detailRes?.data;
+        setMahasiswaId(data?.mahasiswaId || data?.mahasiswa?.id || "");
+        setNomorIjazah(data?.nomorIjazah || "");
+        setTanggalLulus(
+          data?.tanggalLulus ? data.tanggalLulus.slice(0, 10) : ""
+        );
+        setIpk(
+          typeof data?.ipk === "number" ? data.ipk.toString() : data?.ipk || ""
+        );
+        setJudulTA(data?.judulTA || "");
+        setStatus(data?.status || data?.statusValidasi || "DRAFT");
+        setMahasiswaOptions(mhsRes.data || []);
+      } catch (err) {
+        console.error("Gagal memuat detail ijazah:", err);
+        setErrorMsg(err.message || "Gagal memuat detail ijazah.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    if (id) {
+      loadData();
+    }
+  }, [id]);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setErrorMsg("");
+
+    if (!mahasiswaId || !nomorIjazah || !tanggalLulus || !ipk) {
+      setErrorMsg("Mahasiswa, nomor ijazah, tanggal lulus, dan IPK wajib diisi.");
+      return;
+    }
+
+    const payload = {
+      mahasiswaId: Number(mahasiswaId),
+      nomorIjazah,
+      tanggalLulus,
+      ipk: parseFloat(ipk),
+      judulTA: judulTA || null,
+      status, // atau statusValidasi: status
+    };
+
+    console.log("PAYLOAD IJAZAH:", payload);
+
+    try {
+      setSaving(true);
+      await apiPut(`/ijazah/${id}`, payload);
+      router.push(
+        "/admin/ijazah?success=Data%20ijazah%20berhasil%20diperbarui."
+      );
+    } catch (err) {
+      console.error("Gagal update ijazah:", err);
+      setErrorMsg(err.message || "Gagal memperbarui data ijazah.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <RequireRole allowedRoles={["ADMIN"]}>
+      <AppLayout>
+        <div className="bg-white border border-gray-400 text-black">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-400">
+            <h3 className="text-lg font-semibold">Edit Ijazah</h3>
+            <button
+              onClick={() => router.push("/admin/ijazah")}
+              className="px-4 py-2 text-xs border border-black"
+            >
+              Kembali
+            </button>
+          </div>
+
+          {errorMsg && (
+            <div className="px-4 py-3 border-b border-gray-400">
+              <div className="text-sm text-black bg-red-50 border border-red-200 rounded px-3 py-2">
+                {errorMsg}
+              </div>
+            </div>
+          )}
+
+          <div className="px-4 py-4">
+            {loading ? (
+              <p className="text-sm">Memuat detail...</p>
+            ) : (
+              <form
+                onSubmit={handleSubmit}
+                className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm"
+              >
+                <FieldSelect
+                  label="Mahasiswa"
+                  value={mahasiswaId}
+                  onChange={setMahasiswaId}
+                  options={mahasiswaOptions.map((m) => ({
+                    value: m.id,
+                    label: `${m.nim} - ${m.nama}`,
+                  }))}
+                  placeholder="Pilih mahasiswa"
+                />
+                <FieldText
+                  label="Nomor Ijazah"
+                  value={nomorIjazah}
+                  onChange={setNomorIjazah}
+                  placeholder="Nomor ijazah"
+                />
+                <FieldText
+                  label="Tanggal Lulus / Wisuda"
+                  value={tanggalLulus}
+                  onChange={setTanggalLulus}
+                  placeholder=""
+                  type="date"
+                />
+                <FieldText
+                  label="IPK"
+                  value={ipk}
+                  onChange={setIpk}
+                  placeholder="3.50"
+                  type="number"
+                  step="0.01"
+                />
+                <FieldText
+                  label="Judul TA / Skripsi"
+                  value={judulTA}
+                  onChange={setJudulTA}
+                  placeholder="(opsional)"
+                  className="md:col-span-3"
+                />
+                <FieldSelect
+                  label="Status"
+                  value={status}
+                  onChange={setStatus}
+                  options={[
+                    { value: "DRAFT", label: "DRAFT" },
+                    { value: "TERBIT", label: "TERBIT" },
+                    { value: "DIBATALKAN", label: "DIBATALKAN" },
+                  ]}
+                  placeholder="Pilih status"
+                />
+
+                <div className="md:col-span-3 flex items-center gap-3 mt-2">
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="px-4 py-2 text-xs border border-black disabled:opacity-60"
+                  >
+                    {saving ? "Menyimpan..." : "Update"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => router.push("/admin/ijazah")}
+                    className="px-4 py-2 text-xs border border-gray-500 text-black"
+                  >
+                    Batal
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      </AppLayout>
+    </RequireRole>
+  );
+}
+
+function FieldText({ label, value, onChange, placeholder, type = "text", step, className = "" }) {
+  return (
+    <div className={["space-y-1", className].filter(Boolean).join(" ")}>
+      <label className="font-medium text-black">{label}</label>
+      <input
+        type={type}
+        step={step}
+        className="w-full border border-gray-400 rounded-md px-3 py-2 text-black"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+      />
+    </div>
+  );
+}
+
+function FieldSelect({ label, value, onChange, options, placeholder }) {
+  return (
+    <div className="space-y-1">
+      <label className="font-medium text-black">{label}</label>
+      <select
+        className="w-full border border-gray-400 rounded-md px-3 py-2 bg-white text-black"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        <option value="">{placeholder || "Pilih opsi"}</option>
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
