@@ -4,7 +4,62 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import AppLayout from "../../../components/layout/AppLayout";
 import RequireRole from "../../../components/auth/RequireRole";
-import { apiGet, apiDelete } from "../../../lib/api";
+import { apiGet, apiDelete, apiPost } from "../../../lib/api";
+
+function formatDate(dateString) {
+  if (!dateString) return "-";
+  try {
+    return new Date(dateString).toISOString().slice(0, 10);
+  } catch {
+    return dateString;
+  }
+}
+
+function StatusBadge({ status }) {
+  if (!status) {
+    return <span className="text-[11px] text-gray-700">-</span>;
+  }
+
+  const s = String(status).toUpperCase();
+  const base =
+    "inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium";
+
+  if (s === "TERVALIDASI") {
+    return <span className={`${base} bg-green-100 text-green-700`}>{s}</span>;
+  }
+  if (s === "DRAFT" || s === "PENDING") {
+    return <span className={`${base} bg-yellow-100 text-yellow-700`}>{s}</span>;
+  }
+  if (s === "DITOLAK" || s === "DIBATALKAN") {
+    return <span className={`${base} bg-red-100 text-red-700`}>{s}</span>;
+  }
+  return <span className={`${base} bg-gray-100 text-gray-700`}>{s}</span>;
+}
+
+function OnchainBadge({ statusOnchain }) {
+  if (!statusOnchain) {
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] bg-gray-100 text-gray-600">
+        BELUM
+      </span>
+    );
+  }
+
+  const s = statusOnchain.toUpperCase();
+  const base =
+    "inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium";
+
+  if (s === "SUCCESS") {
+    return <span className={`${base} bg-green-100 text-green-700`}>SUCCESS</span>;
+  }
+  if (s === "PENDING") {
+    return <span className={`${base} bg-yellow-100 text-yellow-700`}>PENDING</span>;
+  }
+  if (s === "FAILED") {
+    return <span className={`${base} bg-red-100 text-red-700`}>FAILED</span>;
+  }
+  return <span className={`${base} bg-gray-100 text-gray-700`}>{s}</span>;
+}
 
 export default function IjazahPage() {
   const router = useRouter();
@@ -14,6 +69,7 @@ export default function IjazahPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [listIjazah, setListIjazah] = useState([]);
+  const [publishingId, setPublishingId] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -37,6 +93,7 @@ export default function IjazahPage() {
       setErrorMsg(err.message || "Gagal memuat data ijazah.");
     } finally {
       setLoading(false);
+      setPublishingId(null);
     }
   }
 
@@ -65,12 +122,26 @@ export default function IjazahPage() {
     }
   }
 
-  function formatDate(dateString) {
-    if (!dateString) return "-";
+  async function handlePublishOnchain(ijazah) {
+    const { id, nomorIjazah } = ijazah;
+    const confirmPublish = window.confirm(
+      `Publish ijazah ${nomorIjazah || id} ke blockchain?\nPastikan data sudah benar, karena hash akan permanen.`
+    );
+    if (!confirmPublish) return;
+
     try {
-      return new Date(dateString).toISOString().slice(0, 10);
-    } catch {
-      return dateString;
+      setErrorMsg("");
+      setSuccessMsg("");
+      setPublishingId(id);
+
+      const res = await apiPost(`/ijazah/${id}/publish-onchain`, {});
+      await loadData();
+      setSuccessMsg(res?.message || "Berhasil publish ijazah ke blockchain.");
+    } catch (err) {
+      console.error("Gagal publish ijazah ke blockchain:", err);
+      setErrorMsg(err.message || "Gagal mempublish ijazah ke blockchain.");
+    } finally {
+      setPublishingId(null);
     }
   }
 
@@ -128,18 +199,26 @@ export default function IjazahPage() {
                       <th className="border border-gray-400 px-2 py-2 text-left">IPK</th>
                       <th className="border border-gray-400 px-2 py-2 text-left">STATUS</th>
                       <th className="border border-gray-400 px-2 py-2 text-left">JUDUL TA</th>
+                      <th className="border border-gray-400 px-2 py-2 text-left">STATUS ON-CHAIN</th>
+                      <th className="border border-gray-400 px-2 py-2 text-left w-32">AKSI BLOCKCHAIN</th>
                       <th className="border border-gray-400 px-2 py-2 text-left w-24">AKSI</th>
                     </tr>
                   </thead>
                   <tbody>
                     {loading ? (
                       <tr>
-                        <td colSpan={9} className="px-2 py-2 text-center text-black">
+                        <td colSpan={11} className="px-2 py-2 text-center text-black">
                           Memuat data...
                         </td>
                       </tr>
                     ) : (
-                      listIjazah.map((ijz) => (
+                    listIjazah.map((ijz) => {
+                      const bc = ijz.blockchainRecord || null;
+                      const statusOnchain = bc?.statusOnchain || null;
+                      const alreadySuccess =
+                        statusOnchain && statusOnchain.toUpperCase() === "SUCCESS";
+
+                      return (
                         <tr key={ijz.id}>
                           <td className="border border-gray-400 px-2 py-2">{ijz.id}</td>
                           <td className="border border-gray-400 px-2 py-2">{ijz.nomorIjazah || "-"}</td>
@@ -160,9 +239,37 @@ export default function IjazahPage() {
                               : ijz.ipk || "-"}
                           </td>
                           <td className="border border-gray-400 px-2 py-2">
-                            {ijz.status || ijz.statusValidasi || "-"}
+                            <StatusBadge status={ijz.statusValidasi || ijz.status} />
                           </td>
                           <td className="border border-gray-400 px-2 py-2">{ijz.judulTA || "-"}</td>
+                          <td className="border border-gray-400 px-2 py-2">
+                            <div className="flex flex-col gap-1">
+                              <OnchainBadge statusOnchain={statusOnchain} />
+                              {bc?.blockNumber != null && (
+                                <span className="text-[10px] text-gray-700">Block #{bc.blockNumber}</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="border border-gray-400 px-2 py-2">
+                            <div className="flex flex-col gap-1">
+                              <button
+                                className="px-2 py-1 text-[10px] border border-black disabled:opacity-60 hover:bg-black hover:text-white transition-colors"
+                                disabled={publishingId === ijz.id || alreadySuccess}
+                                onClick={() => handlePublishOnchain(ijz)}
+                              >
+                                {alreadySuccess
+                                  ? "Sudah On-Chain"
+                                  : publishingId === ijz.id
+                                  ? "Memproses..."
+                                  : "Publish ke Blockchain"}
+                              </button>
+                              {bc?.txHash && (
+                                <span className="text-[10px] text-gray-700 break-all">
+                                  Tx: {bc.txHash}
+                                </span>
+                              )}
+                            </div>
+                          </td>
                           <td className="border border-gray-400 px-2 py-2">
                             <div className="flex gap-2">
                               <button
@@ -180,11 +287,12 @@ export default function IjazahPage() {
                             </div>
                           </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
             )}
           </div>
         </div>
@@ -192,4 +300,3 @@ export default function IjazahPage() {
     </RequireRole>
   );
 }
-
