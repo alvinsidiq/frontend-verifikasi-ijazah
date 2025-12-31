@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import AppLayout from "../../../components/layout/AppLayout";
 import RequireRole from "../../../components/auth/RequireRole";
 import { apiGet } from "../../../lib/api";
@@ -44,11 +44,7 @@ export default function MahasiswaDashboardPage() {
   const [ijazahList, setIjazahList] = useState([]);
   const [errorMsg, setErrorMsg] = useState("");
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  async function loadData() {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setErrorMsg("");
@@ -63,7 +59,30 @@ export default function MahasiswaDashboardPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    // Poll ringan agar status on-chain segera ter-update begitu admin menerbitkan
+    if (loading || ijazahList.length === 0) return;
+
+    const hasPendingOnchain = ijazahList.some((ijz) => {
+      const bc = ijz.blockchainRecord || (Array.isArray(ijz.blockchainRecords) && ijz.blockchainRecords[0]);
+      const statusOnchain = (bc?.statusOnchain || bc?.status || "").toUpperCase();
+      return statusOnchain === "PENDING" || statusOnchain === "BELUM_ONCHAIN" || statusOnchain === "PROCESSING";
+    });
+
+    if (!hasPendingOnchain) return;
+
+    const intervalId = setInterval(() => {
+      loadData();
+    }, 10000);
+
+    return () => clearInterval(intervalId);
+  }, [ijazahList, loading, loadData]);
 
   const prodi = profile?.prodi;
 
@@ -143,6 +162,7 @@ export default function MahasiswaDashboardPage() {
               {ijazahList.map((ijz) => {
                 const bc = ijz.blockchainRecord || (Array.isArray(ijz.blockchainRecords) && ijz.blockchainRecords[0]);
                 const statusOnchain = bc?.statusOnchain || bc?.status || "BELUM_ONCHAIN";
+                const judulTA = ijz.judulTA || ijz.judul_ta || "";
 
                 return (
                   <div key={ijz.id} className="border rounded-lg p-3 text-xs flex flex-col md:flex-row md:justify-between gap-3">
@@ -159,9 +179,9 @@ export default function MahasiswaDashboardPage() {
                           <span className="text-black">IPK:</span> {typeof ijz.ipk === "number" ? ijz.ipk.toFixed(2) : ijz.ipk || "-"}
                         </div>
                       </div>
-                      {ijz.judulTA && (
+                      {judulTA && (
                         <div>
-                          <span className="text-black">Judul TA:</span> {ijz.judulTA}
+                          <span className="text-black">Judul TA:</span> {judulTA}
                         </div>
                       )}
                     </div>

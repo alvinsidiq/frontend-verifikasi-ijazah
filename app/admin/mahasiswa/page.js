@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import AppLayout from "../../../components/layout/AppLayout";
 import RequireRole from "../../../components/auth/RequireRole";
 import { apiGet, apiDelete } from "../../../lib/api";
+import { resolveImageUrl } from "../../../lib/media";
 
 export default function MahasiswaPage() {
   const router = useRouter();
@@ -134,43 +135,60 @@ export default function MahasiswaPage() {
                         </td>
                       </tr>
                     ) : (
-                      listMahasiswa.map((mhs) => (
-                        <tr key={mhs.id}>
-                          <td className="border border-gray-400 px-2 py-2">{mhs.id}</td>
-                          <td className="border border-gray-400 px-2 py-2">{mhs.nim}</td>
-                          <td className="border border-gray-400 px-2 py-2">{mhs.nama}</td>
-                          <td className="border border-gray-400 px-2 py-2">
-                            {formatTTL(mhs.tempatLahir, mhs.tanggalLahir)}
-                          </td>
-                          <td className="border border-gray-400 px-2 py-2">{mhs.alamat || "-"}</td>
-                          <td className="border border-gray-400 px-2 py-2">{mhs.email || "-"}</td>
-                          <td className="border border-gray-400 px-2 py-2">{mhs.noTelepon || "-"}</td>
-                          <td className="border border-gray-400 px-2 py-2">{mhs.foto || "-"}</td>
-                          <td className="border border-gray-400 px-2 py-2">
-                            {mhs.tanggalMasuk || mhs.tahunMasuk || "-"}
-                          </td>
-                          <td className="border border-gray-400 px-2 py-2">{mhs.status || "-"}</td>
-                          <td className="border border-gray-400 px-2 py-2">
-                            {mhs.prodi?.namaProdi || mhs.prodiId || "-"}
-                          </td>
-                          <td className="border border-gray-400 px-2 py-2">
-                            <div className="flex gap-2">
-                              <button
-                                className="px-2 py-1 text-[10px] border border-black"
-                                onClick={() => goToEdit(mhs.id)}
-                              >
-                                EDIT
-                              </button>
-                              <button
-                                className="px-2 py-1 text-[10px] border border-black"
-                                onClick={() => handleDelete(mhs.id)}
-                              >
-                                HAPUS
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
+                      listMahasiswa.map((mhs) => {
+                        const fotoUrl = resolveImageUrl(mhs.foto);
+                        return (
+                          <tr key={mhs.id}>
+                            <td className="border border-gray-400 px-2 py-2">{mhs.id}</td>
+                            <td className="border border-gray-400 px-2 py-2">{mhs.nim}</td>
+                            <td className="border border-gray-400 px-2 py-2">{mhs.nama}</td>
+                            <td className="border border-gray-400 px-2 py-2">
+                              {formatTTL(mhs.tempatLahir, mhs.tanggalLahir)}
+                            </td>
+                            <td className="border border-gray-400 px-2 py-2">{mhs.alamat || "-"}</td>
+                            <td className="border border-gray-400 px-2 py-2">{mhs.email || "-"}</td>
+                            <td className="border border-gray-400 px-2 py-2">{mhs.noTelepon || "-"}</td>
+                            <td className="border border-gray-400 px-2 py-2">
+                              {mhs.foto ? (
+                                <img
+                                  src={fotoUrl}
+                                  alt={mhs.nama}
+                                  className="h-10 w-10 object-cover rounded-full border"
+                                  onError={(e) => {
+                                    e.currentTarget.onerror = null;
+                                    e.currentTarget.src = "/file.svg";
+                                  }}
+                                />
+                              ) : (
+                                "-"
+                              )}
+                            </td>
+                            <td className="border border-gray-400 px-2 py-2">
+                              {mhs.tanggalMasuk || mhs.tahunMasuk || "-"}
+                            </td>
+                            <td className="border border-gray-400 px-2 py-2">{mhs.status || "-"}</td>
+                            <td className="border border-gray-400 px-2 py-2">
+                              {mhs.prodi?.namaProdi || mhs.prodiId || "-"}
+                            </td>
+                            <td className="border border-gray-400 px-2 py-2">
+                              <div className="flex gap-2">
+                                <button
+                                  className="px-2 py-1 text-[10px] border border-black"
+                                  onClick={() => goToEdit(mhs.id)}
+                                >
+                                  EDIT
+                                </button>
+                                <button
+                                  className="px-2 py-1 text-[10px] border border-black"
+                                  onClick={() => handleDelete(mhs.id)}
+                                >
+                                  HAPUS
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>

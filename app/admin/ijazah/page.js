@@ -16,24 +16,47 @@ function formatDate(dateString) {
 }
 
 function StatusBadge({ status }) {
-  if (!status) {
-    return <span className="text-[11px] text-gray-700">-</span>;
-  }
-
-  const s = String(status).toUpperCase();
+  const s = (status || "").toUpperCase();
   const base =
     "inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium";
 
+  if (s === "DRAFT") {
+    return (
+      <span className={`${base} bg-yellow-100 text-yellow-700`}>
+        DRAFT
+      </span>
+    );
+  }
+
+  if (s === "APPROVED_ADMIN") {
+    return (
+      <span className={`${base} bg-blue-100 text-blue-700`}>
+        Disetujui Admin (1/2)
+      </span>
+    );
+  }
+
   if (s === "TERVALIDASI") {
-    return <span className={`${base} bg-green-100 text-green-700`}>{s}</span>;
+    return (
+      <span className={`${base} bg-green-100 text-green-700`}>
+        TERVALIDASI (2/2)
+      </span>
+    );
   }
-  if (s === "DRAFT" || s === "PENDING") {
-    return <span className={`${base} bg-yellow-100 text-yellow-700`}>{s}</span>;
+
+  if (s === "DITOLAK_ADMIN" || s === "DITOLAK_VALIDATOR") {
+    return (
+      <span className={`${base} bg-red-100 text-red-700`}>
+        {s.replace("_", " ")}
+      </span>
+    );
   }
-  if (s === "DITOLAK" || s === "DIBATALKAN") {
-    return <span className={`${base} bg-red-100 text-red-700`}>{s}</span>;
-  }
-  return <span className={`${base} bg-gray-100 text-gray-700`}>{s}</span>;
+
+  return (
+    <span className={`${base} bg-gray-100 text-gray-700`}>
+      {s || "-"}
+    </span>
+  );
 }
 
 function OnchainBadge({ statusOnchain }) {
@@ -119,6 +142,42 @@ export default function IjazahPage() {
     } catch (err) {
       console.error("Error hapus ijazah:", err);
       setErrorMsg(err.message || "Gagal menghapus data ijazah.");
+    }
+  }
+
+  async function handleAdminApprove(ijazah) {
+    const ok = window.confirm(`Validasi Admin untuk ijazah ${ijazah.nomorIjazah}?`);
+    if (!ok) return;
+
+    try {
+      setErrorMsg("");
+      setSuccessMsg("");
+      await apiPost(`/ijazah/${ijazah.id}/validasi/admin-approve`, {});
+      await loadData();
+      setSuccessMsg("Berhasil validasi Admin (1/2).");
+    } catch (err) {
+      console.error("Gagal validasi admin:", err);
+      const msg = err.message || "Gagal validasi Admin";
+      setErrorMsg(msg);
+      window.alert(msg);
+    }
+  }
+
+  async function handleAdminReject(ijazah) {
+    const ok = window.confirm(`Tolak (Admin) ijazah ${ijazah.nomorIjazah}?`);
+    if (!ok) return;
+
+    try {
+      setErrorMsg("");
+      setSuccessMsg("");
+      await apiPost(`/ijazah/${ijazah.id}/validasi/admin-reject`, {});
+      await loadData();
+      setSuccessMsg("Ijazah ditolak oleh Admin.");
+    } catch (err) {
+      console.error("Gagal tolak admin:", err);
+      const msg = err.message || "Gagal menolak ijazah (Admin)";
+      setErrorMsg(msg);
+      window.alert(msg);
     }
   }
 
@@ -217,6 +276,9 @@ export default function IjazahPage() {
                       const statusOnchain = bc?.statusOnchain || null;
                       const alreadySuccess =
                         statusOnchain && statusOnchain.toUpperCase() === "SUCCESS";
+                      const statusValidasi = (ijz.statusValidasi || ijz.status || "").toUpperCase();
+                      const isFullyValidated = statusValidasi === "TERVALIDASI";
+                      const isDraft = statusValidasi === "DRAFT";
 
                       return (
                         <tr key={ijz.id}>
@@ -239,9 +301,9 @@ export default function IjazahPage() {
                               : ijz.ipk || "-"}
                           </td>
                           <td className="border border-gray-400 px-2 py-2">
-                            <StatusBadge status={ijz.statusValidasi || ijz.status} />
+                            <StatusBadge status={statusValidasi} />
                           </td>
-                          <td className="border border-gray-400 px-2 py-2">{ijz.judulTA || "-"}</td>
+                          <td className="border border-gray-400 px-2 py-2">{ijz.judulTA || ijz.judul_ta || "-"}</td>
                           <td className="border border-gray-400 px-2 py-2">
                             <div className="flex flex-col gap-1">
                               <OnchainBadge statusOnchain={statusOnchain} />
@@ -252,13 +314,36 @@ export default function IjazahPage() {
                           </td>
                           <td className="border border-gray-400 px-2 py-2">
                             <div className="flex flex-col gap-1">
+                              {/* Aksi khusus Admin */}
+                              {isDraft && (
+                                <button
+                                  onClick={() => handleAdminApprove(ijz)}
+                                  className="px-2 py-1 border border-slate-900 text-[11px] hover:bg-slate-900 hover:text-white rounded mb-1"
+                                >
+                                  Validasi Admin (1/2)
+                                </button>
+                              )}
+                              {isDraft && (
+                                <button
+                                  onClick={() => handleAdminReject(ijz)}
+                                  className="px-2 py-1 border border-red-600 text-[11px] text-red-600 hover:bg-red-600 hover:text-white rounded"
+                                >
+                                  Tolak Admin
+                                </button>
+                              )}
                               <button
-                                className="px-2 py-1 text-[10px] border border-black disabled:opacity-60 hover:bg-black hover:text-white transition-colors"
-                                disabled={publishingId === ijz.id || alreadySuccess}
+                                className="px-2 py-1 rounded-md border border-slate-900 text-[11px] text-slate-900 hover:bg-slate-900 hover:text-white disabled:opacity-50"
+                                disabled={
+                                  publishingId === ijz.id ||
+                                  alreadySuccess ||
+                                  !isFullyValidated
+                                }
                                 onClick={() => handlePublishOnchain(ijz)}
                               >
                                 {alreadySuccess
                                   ? "Sudah On-Chain"
+                                  : !isFullyValidated
+                                  ? "Belum 2x Validasi"
                                   : publishingId === ijz.id
                                   ? "Memproses..."
                                   : "Publish ke Blockchain"}
