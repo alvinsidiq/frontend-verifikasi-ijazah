@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import AppLayout from "../../../../components/layout/AppLayout";
 import RequireRole from "../../../../components/auth/RequireRole";
-import { apiGet, apiPost } from "../../../../lib/api";
+import { apiGet, apiPostForm } from "../../../../lib/api";
+
+const STATUS_OPTIONS = ["AKTIF", "LULUS", "CUTI", "NONAKTIF"];
 
 export default function MahasiswaTambahPage() {
   const router = useRouter();
@@ -23,8 +25,8 @@ export default function MahasiswaTambahPage() {
   const [tanggalLahir, setTanggalLahir] = useState("");
   const [alamat, setAlamat] = useState("");
   const [noTelepon, setNoTelepon] = useState("");
-  const [foto, setFoto] = useState("");
-  const [status, setStatus] = useState("");
+  const [fotoFile, setFotoFile] = useState(null);
+  const [status, setStatus] = useState("AKTIF");
 
   useEffect(() => {
     async function loadData() {
@@ -51,27 +53,25 @@ export default function MahasiswaTambahPage() {
       return;
     }
 
-    const payload = {
-      email,
-      password,
-      nim,
-      nama,
-      prodiId: parsedProdiId,
-      tahunMasuk: parsedTahunMasuk,
-      tahunLulus: tahunLulus ? Number(tahunLulus) : null,
-      tempatLahir: tempatLahir || null,
-      tanggalLahir: tanggalLahir || null,
-      alamat: alamat || null,
-      noTelepon: noTelepon || null,
-      foto: foto || null,
-      status: status || null,
-    };
-
-    console.log("PAYLOAD MAHASISWA:", { ...payload, password: "***" });
-
     try {
       setLoading(true);
-      await apiPost("/mahasiswa", payload);
+      const formData = new FormData();
+      formData.append("email", email);
+      formData.append("password", password);
+      formData.append("nim", nim);
+      formData.append("nama", nama);
+      formData.append("prodiId", String(parsedProdiId));
+      formData.append("tahunMasuk", String(parsedTahunMasuk));
+
+      if (tahunLulus) formData.append("tahunLulus", String(Number(tahunLulus)));
+      if (tempatLahir) formData.append("tempatLahir", tempatLahir);
+      if (tanggalLahir) formData.append("tanggalLahir", tanggalLahir);
+      if (alamat) formData.append("alamat", alamat);
+      if (noTelepon) formData.append("noTelepon", noTelepon);
+      if (status) formData.append("status", status);
+      if (fotoFile) formData.append("foto", fotoFile);
+
+      await apiPostForm("/mahasiswa", formData);
       router.push(
         "/admin/mahasiswa?success=Data%20mahasiswa%20berhasil%20ditambahkan."
       );
@@ -171,17 +171,16 @@ export default function MahasiswaTambahPage() {
                 onChange={setNoTelepon}
                 placeholder="08123456789"
               />
-              <FieldText
+              <FieldFile
                 label="Foto"
-                value={foto}
-                onChange={setFoto}
-                placeholder="URL foto (opsional)"
+                onChange={setFotoFile}
+                helper="Format gambar, maks 2MB (ikuti batasan backend)."
               />
-              <FieldText
+              <FieldStatus
                 label="Status"
                 value={status}
                 onChange={setStatus}
-                placeholder="Aktif / Lulus / Cuti"
+                options={STATUS_OPTIONS}
               />
 
               <div className="md:col-span-3 flex items-center gap-3 mt-2">
@@ -236,6 +235,43 @@ function FieldSelect({ label, value, onChange, options }) {
         {options.map((p) => (
           <option key={p.id} value={p.id}>
             {p.kodeProdi} - {p.namaProdi}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function FieldFile({ label, onChange, helper }) {
+  return (
+    <div className="space-y-1">
+      <label className="font-medium text-black">{label}</label>
+      <input
+        type="file"
+        accept="image/*"
+        className="text-xs text-black"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          onChange(file || null);
+        }}
+      />
+      {helper && <p className="text-[11px] text-gray-600">{helper}</p>}
+    </div>
+  );
+}
+
+function FieldStatus({ label, value, onChange, options }) {
+  return (
+    <div className="space-y-1">
+      <label className="font-medium text-black">{label}</label>
+      <select
+        className="w-full border border-gray-400 rounded-md px-3 py-2 bg-white text-black"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        {options.map((opt) => (
+          <option key={opt} value={opt}>
+            {opt}
           </option>
         ))}
       </select>

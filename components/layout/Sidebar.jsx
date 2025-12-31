@@ -61,6 +61,11 @@ export default function Sidebar() {
               activePath={pathname}
             />
             <NavItem
+              href="/admin/laporan"
+              label="Laporan"
+              activePath={pathname}
+            />
+            <NavItem
               href="/admin/generate-qrcode"
               label="Generate QR Code"
               activePath={pathname}
@@ -74,6 +79,8 @@ export default function Sidebar() {
               Validator
             </p>
             <NavItem href="/validator/dashboard" label="Dashboard" activePath={pathname} />
+            <NavItem href="/validator/ijazah" label="Lihat Ijazah" activePath={pathname} />
+            <NavItem href="/validator/laporan" label="Lihat Laporan" activePath={pathname} />
           </div>
         )}
 
@@ -83,6 +90,7 @@ export default function Sidebar() {
               Mahasiswa
             </p>
             <NavItem href="/mahasiswa/dashboard" label="Dashboard" activePath={pathname} />
+            <NavItem href="/mahasiswa/ijazah" label="Lihat Ijazah" activePath={pathname} />
           </div>
         )}
 

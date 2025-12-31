@@ -18,7 +18,7 @@ export default function IjazahTambahPage() {
   const [tanggalLulus, setTanggalLulus] = useState("");
   const [ipk, setIpk] = useState("");
   const [judulTA, setJudulTA] = useState("");
-  const [status, setStatus] = useState("DRAFT");
+  const [statusValidasi, setStatusValidasi] = useState("DRAFT");
 
   useEffect(() => {
     async function loadMahasiswa() {
@@ -37,7 +37,9 @@ export default function IjazahTambahPage() {
     e.preventDefault();
     setErrorMsg("");
 
-    if (!mahasiswaId || !nomorIjazah || !tanggalLulus || !ipk) {
+    const ipkValue = ipk.toString().trim();
+
+    if (!mahasiswaId || !nomorIjazah || !tanggalLulus || !ipkValue) {
       setErrorMsg(
         "Mahasiswa, nomor ijazah, tanggal lulus, dan IPK wajib diisi."
       );
@@ -48,9 +50,9 @@ export default function IjazahTambahPage() {
       mahasiswaId: Number(mahasiswaId),
       nomorIjazah,
       tanggalLulus,
-      ipk: parseFloat(ipk),
-      judulTA: judulTA || null,
-      status, // atau statusValidasi: status
+      ipk: ipkValue,
+      judul_ta: judulTA || null, // backend kebanyakan pakai snake_case
+      statusValidasi,
     };
 
     console.log("PAYLOAD IJAZAH:", payload);
@@ -126,6 +128,8 @@ export default function IjazahTambahPage() {
                 placeholder="3.50"
                 type="number"
                 step="0.01"
+                min="0"
+                max="4"
               />
               <FieldText
                 label="Judul TA / Skripsi"
@@ -135,15 +139,15 @@ export default function IjazahTambahPage() {
                 className="md:col-span-3"
               />
               <FieldSelect
-                label="Status"
-                value={status}
-                onChange={setStatus}
+                label="Status Ijazah"
+                value={statusValidasi}
+                onChange={setStatusValidasi}
                 options={[
                   { value: "DRAFT", label: "DRAFT" },
-                  { value: "TERBIT", label: "TERBIT" },
-                  { value: "DIBATALKAN", label: "DIBATALKAN" },
+                  { value: "TERVALIDASI", label: "TERVALIDASI" },
+                  { value: "DITOLAK", label: "DITOLAK" },
                 ]}
-                placeholder="Pilih status"
+                placeholder="Pilih status validasi"
               />
 
               <div className="md:col-span-3 flex items-center gap-3 mt-2">
@@ -170,13 +174,25 @@ export default function IjazahTambahPage() {
   );
 }
 
-function FieldText({ label, value, onChange, placeholder, type = "text", step, className = "" }) {
+function FieldText({
+  label,
+  value,
+  onChange,
+  placeholder,
+  type = "text",
+  step,
+  min,
+  max,
+  className = "",
+}) {
   return (
     <div className={["space-y-1", className].filter(Boolean).join(" ")}>
       <label className="font-medium text-black">{label}</label>
       <input
         type={type}
         step={step}
+        min={min}
+        max={max}
         className="w-full border border-gray-400 rounded-md px-3 py-2 text-black"
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -205,4 +221,3 @@ function FieldSelect({ label, value, onChange, options, placeholder }) {
     </div>
   );
 }
-
