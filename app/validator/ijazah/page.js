@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import AppLayout from "../../../components/layout/AppLayout";
 import RequireRole from "../../../components/auth/RequireRole";
-import { apiGet, apiPut } from "../../../lib/api";
+import { apiGet, apiPost } from "../../../lib/api";
 
 function formatDate(dateStr) {
   if (!dateStr) return "-";
@@ -38,9 +38,12 @@ function StatusBadge({ status }) {
   const base = "inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium";
 
   if (s === "TERVALIDASI") return <span className={`${base} bg-green-100 text-green-700`}>{s}</span>;
-  if (s === "DITOLAK" || s === "DIBATALKAN") return <span className={`${base} bg-red-100 text-red-700`}>{s}</span>;
-  if (s === "PENDING" || s === "MENUNGGU_VALIDASI" || s === "DRAFT")
+  if (s === "DITOLAK_VALIDATOR" || s === "DITOLAK_ADMIN" || s === "DITOLAK" || s === "DIBATALKAN") {
+    return <span className={`${base} bg-red-100 text-red-700`}>{s}</span>;
+  }
+  if (s === "APPROVED_ADMIN" || s === "PENDING" || s === "MENUNGGU_VALIDASI" || s === "DRAFT") {
     return <span className={`${base} bg-yellow-100 text-yellow-700`}>{s}</span>;
+  }
   return <span className={`${base} bg-gray-100 text-gray-700`}>{s}</span>;
 }
 
@@ -61,7 +64,7 @@ export default function ValidatorIjazahPage() {
       setErrorMsg("");
       setSuccessMsg("");
 
-      const res = await apiGet("/ijazah");
+      const res = await apiGet("/ijazah/validasi/pending");
       setIjazahList(res.data || []);
     } catch (err) {
       console.error("Gagal memuat daftar ijazah:", err);
@@ -84,10 +87,12 @@ export default function ValidatorIjazahPage() {
       setErrorMsg("");
       setSuccessMsg("");
 
-      await apiPut(`/ijazah/${ijazah.id}/validasi`, {
-        statusValidasi: newStatus,
-        catatan,
-      });
+      const endpoint =
+        newStatus === "TERVALIDASI"
+          ? `/ijazah/${ijazah.id}/validasi/validator-approve`
+          : `/ijazah/${ijazah.id}/validasi/validator-reject`;
+
+      await apiPost(endpoint, { catatan });
 
       setSuccessMsg(`Berhasil ${label.toLowerCase()} ijazah.`);
       await loadData();
@@ -190,7 +195,7 @@ export default function ValidatorIjazahPage() {
                                   type="button"
                                   className="px-2 py-1 text-[11px] border border-red-700 bg-red-600 text-white hover:bg-red-700 disabled:opacity-60"
                                   disabled={processingId === ijz.id}
-                                  onClick={() => handleUpdateStatus(ijz, "DITOLAK")}
+                                  onClick={() => handleUpdateStatus(ijz, "DITOLAK_VALIDATOR")}
                                 >
                                   Tolak
                                 </button>

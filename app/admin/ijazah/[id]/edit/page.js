@@ -21,7 +21,7 @@ export default function IjazahEditPage() {
   const [tanggalLulus, setTanggalLulus] = useState("");
   const [ipk, setIpk] = useState("");
   const [judulTA, setJudulTA] = useState("");
-  const [statusValidasi, setStatusValidasi] = useState("DRAFT");
+  const [ipfsInfo, setIpfsInfo] = useState(null);
 
   useEffect(() => {
     async function loadData() {
@@ -40,8 +40,15 @@ export default function IjazahEditPage() {
         setIpk(
           typeof data?.ipk === "number" ? data.ipk.toString() : data?.ipk || ""
         );
-      setJudulTA(data?.judulTA || data?.judul_ta || "");
-        setStatusValidasi(data?.statusValidasi || data?.status || "DRAFT");
+        setJudulTA(data?.judulTA || data?.judul_ta || "");
+        setIpfsInfo({
+          status: data?.ipfsStatus || "",
+          cid: data?.ipfsCid || "",
+          uri: data?.ipfsUri || "",
+          gatewayUrl: data?.ipfsGatewayUrl || "",
+          error: data?.ipfsError || "",
+          uploadedAt: data?.ipfsUploadedAt || "",
+        });
         setMahasiswaOptions(mhsRes.data || []);
       } catch (err) {
         console.error("Gagal memuat detail ijazah:", err);
@@ -73,7 +80,6 @@ export default function IjazahEditPage() {
       tanggalLulus,
       ipk: ipkValue,
       judul_ta: judulTA || null,
-      statusValidasi,
     };
 
     console.log("PAYLOAD IJAZAH:", payload);
@@ -162,17 +168,33 @@ export default function IjazahEditPage() {
                   placeholder="(opsional)"
                   className="md:col-span-3"
                 />
-                <FieldSelect
-                  label="Status Ijazah"
-                  value={statusValidasi}
-                  onChange={setStatusValidasi}
-                  options={[
-                    { value: "DRAFT", label: "DRAFT" },
-                    { value: "TERVALIDASI", label: "TERVALIDASI" },
-                    { value: "DITOLAK", label: "DITOLAK" },
-                  ]}
-                  placeholder="Pilih status validasi"
-                />
+                {ipfsInfo && (
+                  <div className="md:col-span-3 border-t border-gray-200 pt-3 text-xs">
+                    <p className="font-semibold mb-2">Info IPFS</p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <InfoItem label="Status" value={ipfsInfo.status || "-"} />
+                      <InfoItem label="CID" value={ipfsInfo.cid || "-"} />
+                      <InfoItem label="URI" value={ipfsInfo.uri || "-"} />
+                      <div className="space-y-1">
+                        <span className="text-[11px] text-gray-600">Gateway</span>
+                        {ipfsInfo.gatewayUrl ? (
+                          <a
+                            className="text-[11px] text-blue-600 break-all"
+                            href={ipfsInfo.gatewayUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            {ipfsInfo.gatewayUrl}
+                          </a>
+                        ) : (
+                          <span className="text-[11px] text-black">-</span>
+                        )}
+                      </div>
+                      <InfoItem label="Uploaded At" value={ipfsInfo.uploadedAt || "-"} />
+                      <InfoItem label="Error" value={ipfsInfo.error || "-"} />
+                    </div>
+                  </div>
+                )}
 
                 <div className="md:col-span-3 flex items-center gap-3 mt-2">
                   <button
@@ -243,6 +265,15 @@ function FieldSelect({ label, value, onChange, options, placeholder }) {
           </option>
         ))}
       </select>
+    </div>
+  );
+}
+
+function InfoItem({ label, value }) {
+  return (
+    <div className="space-y-1">
+      <span className="text-[11px] text-gray-600">{label}</span>
+      <div className="text-[11px] text-black break-all">{value}</div>
     </div>
   );
 }

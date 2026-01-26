@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import AppLayout from "../../../components/layout/AppLayout";
 import RequireRole from "../../../components/auth/RequireRole";
-import { apiGet, apiPut } from "../../../lib/api";
+import { apiGet, apiPost } from "../../../lib/api";
 
 function formatDate(dateStr) {
   if (!dateStr) return "-";
@@ -22,10 +22,10 @@ function StatusBadge({ status }) {
   if (s === "TERVALIDASI") {
     return <span className={`${base} bg-green-100 text-green-700`}>{s}</span>;
   }
-  if (s === "DITOLAK" || s === "DIBATALKAN") {
+  if (s === "DITOLAK_VALIDATOR" || s === "DITOLAK_ADMIN" || s === "DITOLAK" || s === "DIBATALKAN") {
     return <span className={`${base} bg-red-100 text-red-700`}>{s}</span>;
   }
-  if (s === "PENDING" || s === "MENUNGGU_VALIDASI" || s === "DRAFT") {
+  if (s === "APPROVED_ADMIN" || s === "PENDING" || s === "MENUNGGU_VALIDASI" || s === "DRAFT") {
     return <span className={`${base} bg-yellow-100 text-yellow-700`}>{s}</span>;
   }
   return <span className={`${base} bg-gray-100 text-gray-700`}>{s}</span>;
@@ -60,22 +60,25 @@ export default function ValidatorDashboardPage() {
     }
   }
 
-  async function handleUpdateStatus(ijazahId, newStatus) {
-    const label = newStatus === "TERVALIDASI" ? "menerima" : "menolak";
+  async function handleUpdateStatus(ijazahId, action) {
+    // action: "APPROVE" | "REJECT"
+    const label = action === "APPROVE" ? "menerima" : "menolak";
 
-    const ok = window.confirm(`Anda yakin ingin ${label} ijazah ini (${newStatus})?`);
+    const ok = window.confirm(`Anda yakin ingin ${label} ijazah ini?`);
     if (!ok) return;
 
-    const catatan = window.prompt("Masukkan catatan (opsional, bisa dikosongkan):", "");
+    const catatan = window.prompt("Masukkan catatan (opsional, bisa dikosongkan):", "") || "";
 
     try {
       setErrorMsg("");
       setSuccessMsg("");
 
-      await apiPut(`/ijazah/${ijazahId}/validasi`, {
-        statusValidasi: newStatus,
-        catatan: catatan || "",
-      });
+      const endpoint =
+        action === "APPROVE"
+          ? `/ijazah/${ijazahId}/validasi/validator-approve`
+          : `/ijazah/${ijazahId}/validasi/validator-reject`;
+
+      await apiPost(endpoint, { catatan });
 
       setSuccessMsg(`Ijazah berhasil di-${label}.`);
       await loadData();
@@ -182,14 +185,14 @@ export default function ValidatorDashboardPage() {
                           <button
                             type="button"
                             className="px-2 py-1 text-[11px] border border-black"
-                            onClick={() => handleUpdateStatus(ijz.id, "TERVALIDASI")}
+                            onClick={() => handleUpdateStatus(ijz.id, "APPROVE")}
                           >
                             Terima
                           </button>
                           <button
                             type="button"
                             className="px-2 py-1 text-[11px] border border-black"
-                            onClick={() => handleUpdateStatus(ijz.id, "DITOLAK")}
+                            onClick={() => handleUpdateStatus(ijz.id, "REJECT")}
                           >
                             Tolak
                           </button>
