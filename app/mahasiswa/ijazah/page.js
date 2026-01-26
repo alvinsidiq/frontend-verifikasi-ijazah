@@ -59,7 +59,7 @@ function getDownloadUrl(ijz) {
 
   // Prioritas: endpoint download resmi (Pilihan A: buka tab baru)
   if (ijz.id && API_URL) {
-    return `${API_URL}/api/ijazah/${ijz.id}/download`;
+    return `${API_URL}/ijazah/${ijz.id}/download`;
   }
 
   // Fallback pakai URL yang mungkin sudah disediakan oleh API

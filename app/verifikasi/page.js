@@ -63,8 +63,7 @@ export default function VerifikasiPage() {
       setResult(null);
 
       const res = await apiGet(`/verifikasi?hash=${encodeURIComponent(val)}`);
-      const bcRecord = res.data || null;
-      setResult(bcRecord);
+      setResult(res.data || null);
     } catch (err) {
       console.error("Gagal verifikasi:", err);
       setResult(null);
@@ -75,11 +74,22 @@ export default function VerifikasiPage() {
   }
 
   const ijazah = result?.ijazah || null;
-  const mahasiswa = ijazah?.mahasiswa || null;
+  const mahasiswa = result?.mahasiswa || null;
   const prodi = mahasiswa?.prodi || null;
 
+  const reason = result?.reason;
+  const reasonMessage = (() => {
+    if (!reason) return null;
+    if (reason === "INVALID_HASH_FORMAT")
+      return "Format hash tidak valid. Pastikan 0x + 64 karakter hex.";
+    if (reason === "HASH_NOT_FOUND") return "Hash tidak ditemukan di sistem.";
+    if (reason === "DATA_INCOMPLETE")
+      return "Data ditemukan tapi tidak lengkap di database.";
+    return `Verifikasi gagal: ${reason}`;
+  })();
+
   const statusValidasi = ijazah?.statusValidasi || ijazah?.status;
-  const statusOnchain = result?.statusOnchain || null;
+  const statusOnchain = result?.blockchain?.statusOnchain || null;
 
   function renderStatusValidasi() {
     if (!statusValidasi) return <StatusPill label="BELUM DISET" />;
@@ -110,7 +120,7 @@ export default function VerifikasiPage() {
     return <StatusPill label={s} />;
   }
 
-  const isValidIjazah = Boolean(result && ijazah);
+  const isValidIjazah = result?.valid === true;
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -169,28 +179,43 @@ export default function VerifikasiPage() {
           <section className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-semibold text-slate-900">Hasil Verifikasi</h2>
-              {isValidIjazah ? (
-                <StatusPill label="IJAZAH DITEMUKAN & VALID" variant="success" />
-              ) : (
-                <StatusPill label="BELUM ADA HASIL" />
+              {result && (
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-500 text-xs">Hash Input: </span>
+                  <span className="font-mono text-xs break-all">{result.hashInput || "-"}</span>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(result?.hashInput || "")}
+                    className="px-2 py-1 rounded bg-gray-100 text-[10px] text-slate-700 hover:bg-gray-200"
+                  >
+                    Copy
+                  </button>
+                </div>
               )}
             </div>
 
+            {isValidIjazah ? (
+              <StatusPill label="IJAZAH DITEMUKAN & VALID" variant="success" />
+            ) : result && !isValidIjazah && reasonMessage ? (
+              <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+                {reasonMessage}
+              </div>
+            ) : result && !isValidIjazah && !reasonMessage && !ijazah ? (
+              <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+                Data blockchain ditemukan tetapi data ijazah tidak lengkap di sistem.
+              </div>
+            ) : (
+              <StatusPill label="BELUM ADA HASIL" />
+            )}
+
             {!result && !errorMsg && (
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 mt-2">
                 Masukkan hash ijazah lalu klik <span className="font-semibold">Periksa Ijazah</span>.
                 Sistem akan menampilkan data ijazah jika hash terdaftar.
               </p>
             )}
 
-            {result && !ijazah && (
-              <p className="text-xs text-red-600">
-                Data blockchain ditemukan tetapi data ijazah tidak lengkap di sistem.
-              </p>
-            )}
-
             {isValidIjazah && (
-              <div className="space-y-4 text-xs">
+              <div className="space-y-4 text-xs mt-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <div className="text-[11px] text-slate-500">Nama Mahasiswa</div>
@@ -234,25 +259,25 @@ export default function VerifikasiPage() {
                     </div>
                     <div>
                       <span className="text-slate-500">Hash Ijazah:</span>{" "}
-                      <span className="font-mono break-all">{result.ijazahHash || "-"}</span>
+                      <span className="font-mono break-all">{result?.blockchain?.ijazahHash || "-"}</span>
                     </div>
                     <div>
                       <span className="text-slate-500">Tx Hash:</span>{" "}
-                      <span className="font-mono break-all">{result.txHash || "-"}</span>
+                      <span className="font-mono break-all">{result?.blockchain?.txHash || "-"}</span>
                     </div>
                     <div>
-                      <span className="text-slate-500">Block #:</span> {result.blockNumber ?? "-"}
+                      <span className="text-slate-500">Block #:</span> {result?.blockchain?.blockNumber ?? "-"}
                     </div>
                     <div>
-                      <span className="text-slate-500">Network:</span> {result.network || "-"}
+                      <span className="text-slate-500">Network:</span> {result?.blockchain?.network || "-"}
                     </div>
                   </div>
                 </div>
               </div>
             )}
 
-            {errorMsg && result === null && (
-              <p className="mt-2 text-xs text-red-600">
+            {errorMsg && (
+              <p className="mt-2 text-xs text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
                 {errorMsg}
               </p>
             )}

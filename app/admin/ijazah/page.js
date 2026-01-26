@@ -6,6 +6,11 @@ import AppLayout from "../../../components/layout/AppLayout";
 import RequireRole from "../../../components/auth/RequireRole";
 import { apiGet, apiDelete, apiPost } from "../../../lib/api";
 
+async function fetchNomorHash(nomorIjazah) {
+  const res = await apiGet(`/ijazah/hash-nomor?nomor=${encodeURIComponent(nomorIjazah)}`);
+  return res.data?.hash; // "0x..."
+}
+
 function formatDate(dateString) {
   if (!dateString) return "-";
   try {
@@ -84,6 +89,31 @@ function OnchainBadge({ statusOnchain }) {
   return <span className={`${base} bg-gray-100 text-gray-700`}>{s}</span>;
 }
 
+function IpfsBadge({ status }) {
+  const s = (status || "NOT_UPLOADED").toString().toUpperCase();
+  const base = "px-2 py-1 rounded text-[11px] font-semibold";
+
+  if (s === "READY") {
+    return <span className={`${base} bg-green-100 text-green-700`}>IPFS READY</span>;
+  }
+  if (s === "UPLOADING") {
+    return <span className={`${base} bg-blue-100 text-blue-700`}>UPLOADING</span>;
+  }
+  if (s === "FAILED") {
+    return <span className={`${base} bg-red-100 text-red-700`}>FAILED</span>;
+  }
+  return <span className={`${base} bg-gray-100 text-gray-700`}>NOT UPLOADED</span>;
+}
+
+const STATUS_OPTIONS = [
+  { value: "", label: "Semua" },
+  { value: "DRAFT", label: "Draft" },
+  { value: "APPROVED_ADMIN", label: "Menunggu Validator" },
+  { value: "TERVALIDASI", label: "Tervalidasi" },
+  { value: "DITOLAK_ADMIN", label: "Ditolak Admin" },
+  { value: "DITOLAK_VALIDATOR", label: "Ditolak Validator" },
+];
+
 export default function IjazahPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -93,10 +123,13 @@ export default function IjazahPage() {
   const [successMsg, setSuccessMsg] = useState("");
   const [listIjazah, setListIjazah] = useState([]);
   const [publishingId, setPublishingId] = useState(null);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [qrOpen, setQrOpen] = useState(false);
+  const [qrValue, setQrValue] = useState("");
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [statusFilter]);
 
   useEffect(() => {
     const msg = searchParams.get("success");
@@ -109,7 +142,8 @@ export default function IjazahPage() {
     try {
       setLoading(true);
       setErrorMsg("");
-      const res = await apiGet("/ijazah");
+      const q = statusFilter ? `?status=${encodeURIComponent(statusFilter)}` : "";
+      const res = await apiGet(`/ijazah${q}`);
       setListIjazah(res.data || []);
     } catch (err) {
       console.error("Gagal load ijazah:", err);
@@ -204,6 +238,68 @@ export default function IjazahPage() {
     }
   }
 
+  async function handleUploadIpfs(ijz) {
+    const ok = window.confirm(
+      `Upload ijazah ${ijz.nomorIjazah || ijz.id} ke IPFS sekarang?`
+    );
+    if (!ok) return;
+
+    try {
+      setErrorMsg("");
+      setSuccessMsg("");
+
+      setListIjazah((prev) =>
+        prev.map((x) =>
+          x.id === ijz.id ? { ...x, ipfsStatus: "UPLOADING" } : x
+        )
+      );
+
+      const res = await apiPost(`/ijazah/${ijz.id}/ipfs`, {});
+      const data = res?.data || {};
+
+      if (Object.keys(data).length > 0) {
+        setListIjazah((prev) =>
+          prev.map((x) => (x.id === ijz.id ? { ...x, ...data } : x))
+        );
+      } else {
+        await loadData();
+      }
+
+      setSuccessMsg(
+        data?.ipfsCid ? `Upload IPFS berhasil: ${data.ipfsCid}` : "Upload IPFS berhasil."
+      );
+    } catch (err) {
+      console.error(err);
+      setErrorMsg(err.message || "Gagal upload ke IPFS");
+      await loadData();
+    }
+  }
+
+  async function handleGenerateQR(ijz) {
+    try {
+      setErrorMsg("");
+      const nomor = ijz.nomorIjazah;
+      if (!nomor) {
+        setErrorMsg("Nomor ijazah kosong, tidak bisa generate QR.");
+        return;
+      }
+
+      const hash = await fetchNomorHash(nomor);
+      if (!hash) {
+        setErrorMsg("Gagal menghitung hash nomor ijazah.");
+        return;
+      }
+
+      const verifyUrl = `${window.location.origin}/verifikasi?hash=${hash}`;
+
+      setQrValue(verifyUrl);
+      setQrOpen(true);
+    } catch (err) {
+      console.error(err);
+      setErrorMsg(err.message || "Gagal membuat QR code.");
+    }
+  }
+
   return (
     <RequireRole allowedRoles={["ADMIN"]}>
       <AppLayout>
@@ -220,9 +316,22 @@ export default function IjazahPage() {
           {/* header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-400">
             <h3 className="text-lg font-semibold tracking-wide">DATA IJAZAH</h3>
+          <div className="flex items-center gap-2">
+            <select
+              className="px-3 py-2 text-xs border border-gray-300 rounded"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              {STATUS_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
             <button className="px-4 py-2 text-xs border border-black" onClick={goToAdd}>
               TAMBAH DATA
             </button>
+          </div>
           </div>
 
           {/* notifikasi */}
@@ -258,6 +367,7 @@ export default function IjazahPage() {
                       <th className="border border-gray-400 px-2 py-2 text-left">IPK</th>
                       <th className="border border-gray-400 px-2 py-2 text-left">STATUS</th>
                       <th className="border border-gray-400 px-2 py-2 text-left">JUDUL TA</th>
+                      <th className="border border-gray-400 px-2 py-2 text-left">IPFS</th>
                       <th className="border border-gray-400 px-2 py-2 text-left">STATUS ON-CHAIN</th>
                       <th className="border border-gray-400 px-2 py-2 text-left w-32">AKSI BLOCKCHAIN</th>
                       <th className="border border-gray-400 px-2 py-2 text-left w-24">AKSI</th>
@@ -266,7 +376,7 @@ export default function IjazahPage() {
                   <tbody>
                     {loading ? (
                       <tr>
-                        <td colSpan={11} className="px-2 py-2 text-center text-black">
+                        <td colSpan={12} className="px-2 py-2 text-center text-black">
                           Memuat data...
                         </td>
                       </tr>
@@ -277,8 +387,34 @@ export default function IjazahPage() {
                       const alreadySuccess =
                         statusOnchain && statusOnchain.toUpperCase() === "SUCCESS";
                       const statusValidasi = (ijz.statusValidasi || ijz.status || "").toUpperCase();
-                      const isFullyValidated = statusValidasi === "TERVALIDASI";
+                      const ipfsStatus = (ijz.ipfsStatus || "NOT_UPLOADED").toString().toUpperCase();
+                      const canPublish =
+                        statusValidasi === "TERVALIDASI" &&
+                        ipfsStatus === "READY" &&
+                        !!ijz.ipfsUri;
+                      const canUploadIpfs =
+                        statusValidasi === "TERVALIDASI" && ipfsStatus !== "READY";
+                      const uploadingIpfs = ipfsStatus === "UPLOADING";
                       const isDraft = statusValidasi === "DRAFT";
+                      const publishTitle =
+                        !canPublish
+                          ? statusValidasi !== "TERVALIDASI"
+                            ? "Ijazah harus TERVALIDASI sebelum publish"
+                            : ipfsStatus !== "READY"
+                            ? "Upload IPFS dulu supaya link ijazah tersedia"
+                            : "IPFS URI belum tersedia"
+                          : "Publish ke blockchain";
+                      const publishLabel = alreadySuccess
+                        ? "Sudah On-Chain"
+                        : !canPublish
+                        ? statusValidasi !== "TERVALIDASI"
+                          ? "Belum 2x Validasi"
+                          : ipfsStatus !== "READY"
+                          ? "IPFS belum siap"
+                          : "IPFS URI kosong"
+                        : publishingId === ijz.id
+                        ? "Memproses..."
+                        : "Publish ke Blockchain";
 
                       return (
                         <tr key={ijz.id}>
@@ -304,6 +440,48 @@ export default function IjazahPage() {
                             <StatusBadge status={statusValidasi} />
                           </td>
                           <td className="border border-gray-400 px-2 py-2">{ijz.judulTA || ijz.judul_ta || "-"}</td>
+                          <td className="border border-gray-400 px-2 py-2">
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <IpfsBadge status={ipfsStatus} />
+                                {ipfsStatus === "READY" && ijz.ipfsGatewayUrl && (
+                                  <a
+                                    href={ijz.ipfsGatewayUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="px-2 py-1 rounded bg-gray-200 text-[11px]"
+                                  >
+                                    Open
+                                  </a>
+                                )}
+                                {ipfsStatus === "READY" && (
+                                  <button
+                                    className="px-2 py-1 rounded bg-gray-200 text-[11px]"
+                                    onClick={() =>
+                                      navigator.clipboard.writeText(ijz.ipfsUri || "")
+                                    }
+                                  >
+                                    Copy ipfs://
+                                  </button>
+                                )}
+                              </div>
+                              {ijz.ipfsCid && (
+                                <span className="text-[10px] text-gray-700 break-all">
+                                  CID: {ijz.ipfsCid}
+                                </span>
+                              )}
+                              {ijz.ipfsUri && (
+                                <span className="text-[10px] text-gray-700 break-all">
+                                  URI: {ijz.ipfsUri}
+                                </span>
+                              )}
+                              {ipfsStatus === "FAILED" && ijz.ipfsError && (
+                                <span className="text-[10px] text-red-600 break-all">
+                                  {ijz.ipfsError}
+                                </span>
+                              )}
+                            </div>
+                          </td>
                           <td className="border border-gray-400 px-2 py-2">
                             <div className="flex flex-col gap-1">
                               <OnchainBadge statusOnchain={statusOnchain} />
@@ -332,21 +510,42 @@ export default function IjazahPage() {
                                 </button>
                               )}
                               <button
-                                className="px-2 py-1 rounded-md border border-slate-900 text-[11px] text-slate-900 hover:bg-slate-900 hover:text-white disabled:opacity-50"
+                                disabled={!canUploadIpfs || uploadingIpfs}
+                                title={
+                                  statusValidasi !== "TERVALIDASI"
+                                    ? "Ijazah harus TERVALIDASI sebelum upload IPFS"
+                                    : ipfsStatus === "READY"
+                                    ? "Sudah READY di IPFS"
+                                    : uploadingIpfs
+                                    ? "Sedang upload..."
+                                    : "Upload PDF final ke IPFS"
+                                }
+                                className={`px-2 py-1 rounded text-[11px] font-semibold transition ${
+                                  canUploadIpfs && !uploadingIpfs
+                                    ? "bg-emerald-600 text-white"
+                                    : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                                }`}
+                                onClick={() => handleUploadIpfs(ijz)}
+                              >
+                                {uploadingIpfs ? "Uploading..." : "Upload IPFS"}
+                              </button>
+                              <button
+                                className={`px-2 py-1 rounded-md border text-[11px] font-semibold transition ${
+                                  publishingId === ijz.id ||
+                                  alreadySuccess ||
+                                  !canPublish
+                                    ? "border-gray-300 bg-gray-200 text-gray-500 cursor-not-allowed"
+                                    : "border-slate-900 bg-slate-900 text-white hover:bg-black"
+                                }`}
                                 disabled={
                                   publishingId === ijz.id ||
                                   alreadySuccess ||
-                                  !isFullyValidated
-                                }
-                                onClick={() => handlePublishOnchain(ijz)}
+                                  !canPublish
+                              }
+                                onClick={() => canPublish && handlePublishOnchain(ijz)}
+                                title={publishTitle}
                               >
-                                {alreadySuccess
-                                  ? "Sudah On-Chain"
-                                  : !isFullyValidated
-                                  ? "Belum 2x Validasi"
-                                  : publishingId === ijz.id
-                                  ? "Memproses..."
-                                  : "Publish ke Blockchain"}
+                                {publishLabel}
                               </button>
                               {bc?.txHash && (
                                 <span className="text-[10px] text-gray-700 break-all">
@@ -369,6 +568,12 @@ export default function IjazahPage() {
                               >
                                 HAPUS
                               </button>
+                              <button
+                                className="px-2 py-1 text-[10px] border border-gray-600 text-gray-600 hover:bg-gray-100"
+                                onClick={() => handleGenerateQR(ijz)}
+                              >
+                                QR
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -381,6 +586,41 @@ export default function IjazahPage() {
             )}
           </div>
         </div>
+
+        {/* QR Code Modal */}
+        {qrOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-lg shadow-xl text-black">
+              <h4 className="text-lg font-semibold mb-4">QR Code Ijazah</h4>
+              <div className="flex justify-center mb-4">
+                {qrValue ? (
+                  // Placeholder for QR Code component. User needs to ensure a QR library is installed, e.g., 'qrcode.react'
+                  // <QRCode value={qrValue} size={256} level="H" />
+                  <div className="w-64 h-64 bg-gray-200 flex items-center justify-center">
+                    <p className="text-sm text-gray-500">QR Code will appear here</p>
+                  </div>
+                ) : (
+                  <p>Tidak dapat membuat QR Code.</p>
+                )}
+              </div>
+              <p className="text-xs text-center text-gray-700 mb-4 break-all">{qrValue}</p>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => navigator.clipboard.writeText(qrValue)}
+                  className="px-4 py-2 text-xs border border-black"
+                >
+                  Copy Link
+                </button>
+                <button
+                  onClick={() => setQrOpen(false)}
+                  className="px-4 py-2 text-xs border border-gray-500 text-black"
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </AppLayout>
     </RequireRole>
   );

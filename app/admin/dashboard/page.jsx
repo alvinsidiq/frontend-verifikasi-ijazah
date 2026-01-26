@@ -16,7 +16,7 @@ export default function AdminDashboardPage() {
     programStudiCount: 0,
     mahasiswaCount: 0,
     ijazahTervalidasiCount: 0,
-    ijazahMenungguCount: 0,
+    ijazahApprovedAdminCount: 0,
   });
 
   useEffect(() => {
@@ -34,19 +34,19 @@ export default function AdminDashboardPage() {
         setLoading(true);
         setErrorMsg("");
 
-        const [prodiRes, mhsRes, ijazahTervalidasiRes, ijazahMenungguRes] =
+        const [prodiRes, mhsRes, ijazahTervalidasiRes, ijazahApprovedAdminRes] =
           await Promise.all([
             apiGet("/program-studi"),
             apiGet("/mahasiswa"),
             apiGet("/ijazah?status=TERVALIDASI"),
-            apiGet("/ijazah?status=MENUNGGU"),
+            apiGet("/ijazah?status=APPROVED_ADMIN"),
           ]);
 
         setSummary({
           programStudiCount: prodiRes.data.length,
           mahasiswaCount: mhsRes.data.length,
           ijazahTervalidasiCount: ijazahTervalidasiRes.data.length,
-          ijazahMenungguCount: ijazahMenungguRes.data.length,
+          ijazahApprovedAdminCount: ijazahApprovedAdminRes.data.length,
         });
       } catch (err) {
         console.error("Error load admin summary:", err);
@@ -102,8 +102,8 @@ export default function AdminDashboardPage() {
               value={summary.ijazahTervalidasiCount}
             />
             <StatCard
-              title="Ijazah Menunggu Validasi"
-              value={summary.ijazahMenungguCount}
+              title="Ijazah Menunggu Validasi Validator"
+              value={summary.ijazahApprovedAdminCount}
             />
           </div>
         )}

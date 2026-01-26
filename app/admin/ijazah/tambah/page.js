@@ -18,7 +18,6 @@ export default function IjazahTambahPage() {
   const [tanggalLulus, setTanggalLulus] = useState("");
   const [ipk, setIpk] = useState("");
   const [judulTA, setJudulTA] = useState("");
-  const [statusValidasi, setStatusValidasi] = useState("DRAFT");
 
   useEffect(() => {
     async function loadMahasiswa() {
@@ -52,7 +51,6 @@ export default function IjazahTambahPage() {
       tanggalLulus,
       ipk: ipkValue,
       judul_ta: judulTA || null, // backend kebanyakan pakai snake_case
-      statusValidasi,
     };
 
     console.log("PAYLOAD IJAZAH:", payload);
@@ -137,17 +135,6 @@ export default function IjazahTambahPage() {
                 onChange={setJudulTA}
                 placeholder="(opsional)"
                 className="md:col-span-3"
-              />
-              <FieldSelect
-                label="Status Ijazah"
-                value={statusValidasi}
-                onChange={setStatusValidasi}
-                options={[
-                  { value: "DRAFT", label: "DRAFT" },
-                  { value: "TERVALIDASI", label: "TERVALIDASI" },
-                  { value: "DITOLAK", label: "DITOLAK" },
-                ]}
-                placeholder="Pilih status validasi"
               />
 
               <div className="md:col-span-3 flex items-center gap-3 mt-2">
