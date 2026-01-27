@@ -8,14 +8,15 @@ import { MONAD_TESTNET } from "../lib/monad";
 const Web3Context = createContext(null);
 
 export function Web3Provider({ children }) {
-  const [isMetaMaskInstalled, setIsMetaMaskInstalled] = useState(false);
+  const [isMetaMaskInstalled, setIsMetaMaskInstalled] = useState(null);
   const [address, setAddress] = useState(null);
   const [chainIdHex, setChainIdHex] = useState(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    setIsMetaMaskInstalled(hasMetaMask());
-    if (!hasMetaMask()) return;
+    const installed = hasMetaMask();
+    setIsMetaMaskInstalled(installed);
+    if (!installed) return;
 
     const { ethereum } = window;
 

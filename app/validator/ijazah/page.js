@@ -4,6 +4,10 @@ import { useEffect, useState } from "react";
 import AppLayout from "../../../components/layout/AppLayout";
 import RequireRole from "../../../components/auth/RequireRole";
 import { apiGet, apiPost } from "../../../lib/api";
+import { useWeb3 } from "../../../context/Web3Context";
+import { getIjazahContract } from "../../../lib/ijazahContract";
+import { sendTx } from "../../../lib/tx";
+import WalletConnectButton from "../../../components/WalletConnectButton";
 
 function formatDate(dateStr) {
   if (!dateStr) return "-";
@@ -48,6 +52,7 @@ function StatusBadge({ status }) {
 }
 
 export default function ValidatorIjazahPage() {
+  const { address, isOnMonad, provider } = useWeb3();
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
@@ -104,6 +109,76 @@ export default function ValidatorIjazahPage() {
     }
   }
 
+  async function handleApproveValidatorOnChain(ijz) {
+    try {
+      if (!provider) {
+        window.alert("MetaMask belum terdeteksi.");
+        return;
+      }
+      if (!address) {
+        window.alert("Wallet belum connect. Klik Connect Wallet dulu.");
+        return;
+      }
+      if (!isOnMonad) {
+        window.alert("Silakan switch ke Monad Testnet dulu.");
+        return;
+      }
+      if (!ijz.nomorIjazah) {
+        window.alert("Nomor ijazah kosong.");
+        return;
+      }
+
+      const signer = await provider.getSigner();
+      const contract = getIjazahContract(signer);
+      const { tx } = await sendTx(contract.setujuiOlehValidator(ijz.nomorIjazah), {
+        onHash: (h) => console.log("txHash approve validator:", h),
+      });
+
+      window.alert(`Sukses setujuiOlehValidator.\\nTx: ${tx.hash}`);
+    } catch (e) {
+      console.error(e);
+      window.alert(e?.shortMessage || e?.message || String(e));
+    }
+  }
+
+  async function handlePublishOnChain(ijz) {
+    try {
+      if (!provider) {
+        window.alert("MetaMask belum terdeteksi.");
+        return;
+      }
+      if (!address) {
+        window.alert("Wallet belum connect. Klik Connect Wallet dulu.");
+        return;
+      }
+      if (!isOnMonad) {
+        window.alert("Silakan switch ke Monad Testnet dulu.");
+        return;
+      }
+      const ipfsStatus = (ijz.ipfsStatus || "NOT_UPLOADED").toString().toUpperCase();
+      if (!ijz.ipfsUri || ipfsStatus !== "READY") {
+        window.alert("IPFS belum READY. Upload IPFS dulu.");
+        return;
+      }
+      if (!ijz.nomorIjazah) {
+        window.alert("Nomor ijazah kosong.");
+        return;
+      }
+
+      const signer = await provider.getSigner();
+      const contract = getIjazahContract(signer);
+      const { tx } = await sendTx(
+        contract.publikasikan(ijz.nomorIjazah, { value: 0n }),
+        { onHash: (h) => console.log("txHash publish:", h) }
+      );
+
+      window.alert(`Sukses publikasikan.\\nTx: ${tx.hash}`);
+    } catch (e) {
+      console.error(e);
+      window.alert(e?.shortMessage || e?.message || String(e));
+    }
+  }
+
   return (
     <RequireRole allowedRoles={["VALIDATOR"]}>
       <AppLayout>
@@ -112,13 +187,16 @@ export default function ValidatorIjazahPage() {
             <h2 className="text-xl font-semibold text-black">Lihat Ijazah Mahasiswa</h2>
             <p className="text-sm text-black">Daftar ijazah dan aksi validasi langsung.</p>
           </div>
-          <button
-            type="button"
-            onClick={loadData}
-            className="px-3 py-2 text-xs border border-black bg-white text-black hover:bg-gray-50"
-          >
-            Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <WalletConnectButton />
+            <button
+              type="button"
+              onClick={loadData}
+              className="px-3 py-2 text-xs border border-black bg-white text-black hover:bg-gray-50"
+            >
+              Refresh
+            </button>
+          </div>
         </div>
 
         {errorMsg && (
@@ -170,6 +248,15 @@ export default function ValidatorIjazahPage() {
                     ) : (
                       ijazahList.map((ijz, idx) => {
                         const status = ijz.statusValidasi || ijz.status || "PENDING";
+                        const ipfsStatus = (ijz.ipfsStatus || "NOT_UPLOADED").toString().toUpperCase();
+                        const canApproveValidatorOnchain =
+                          !!address && isOnMonad && !!ijz.nomorIjazah;
+                        const canPublishOnchain =
+                          !!address &&
+                          isOnMonad &&
+                          ipfsStatus === "READY" &&
+                          !!ijz.ipfsUri &&
+                          !!ijz.nomorIjazah;
                         return (
                           <tr key={ijz.id || idx}>
                             <td className="border border-gray-400 px-3 py-2">{idx + 1}</td>
@@ -198,6 +285,47 @@ export default function ValidatorIjazahPage() {
                                   onClick={() => handleUpdateStatus(ijz, "DITOLAK_VALIDATOR")}
                                 >
                                   Tolak
+                                </button>
+                                <div className="w-full h-px bg-gray-200" />
+                                <button
+                                  type="button"
+                                  className={`px-2 py-1 text-[11px] border rounded font-semibold transition ${
+                                    canApproveValidatorOnchain
+                                      ? "border-emerald-700 bg-emerald-600 text-white hover:bg-emerald-700"
+                                      : "border-gray-300 bg-gray-200 text-gray-500 cursor-not-allowed"
+                                  }`}
+                                  disabled={!canApproveValidatorOnchain}
+                                  onClick={() => handleApproveValidatorOnChain(ijz)}
+                                  title={
+                                    !address
+                                      ? "Wallet belum connect"
+                                      : !isOnMonad
+                                      ? "Switch ke Monad Testnet"
+                                      : "Setujui oleh Validator di blockchain"
+                                  }
+                                >
+                                  Approve Validator (On-chain)
+                                </button>
+                                <button
+                                  type="button"
+                                  className={`px-2 py-1 text-[11px] border rounded font-semibold transition ${
+                                    canPublishOnchain
+                                      ? "border-emerald-700 bg-emerald-600 text-white hover:bg-emerald-700"
+                                      : "border-gray-300 bg-gray-200 text-gray-500 cursor-not-allowed"
+                                  }`}
+                                  disabled={!canPublishOnchain}
+                                  onClick={() => handlePublishOnChain(ijz)}
+                                  title={
+                                    !address
+                                      ? "Wallet belum connect"
+                                      : !isOnMonad
+                                      ? "Switch ke Monad Testnet"
+                                      : ipfsStatus !== "READY"
+                                      ? "IPFS belum READY"
+                                      : "Publikasikan di blockchain"
+                                  }
+                                >
+                                  Publish (On-chain)
                                 </button>
                               </div>
                             </td>
