@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import AppLayout from "../../../components/layout/AppLayout";
 import RequireRole from "../../../components/auth/RequireRole";
 import { apiGet, apiDelete, apiPost } from "../../../lib/api";
+import WalletConnectButton from "../../../components/WalletConnectButton";
 
 async function fetchNomorHash(nomorIjazah) {
   const res = await apiGet(`/ijazah/hash-nomor?nomor=${encodeURIComponent(nomorIjazah)}`);
@@ -310,6 +311,7 @@ export default function IjazahPage() {
               Lihat dan kelola data ijazah mahasiswa.
             </p>
           </div>
+          <WalletConnectButton />
         </div>
 
         <div className="bg-white border border-gray-400 text-black">
