@@ -5,8 +5,24 @@ import { useWeb3 } from "../context/Web3Context";
 export default function WalletConnectButton() {
   const { isMetaMaskInstalled, address, isOnMonad, error, connect } = useWeb3();
 
+  if (isMetaMaskInstalled === null) {
+    return <div className="text-sm text-gray-600">Mengecek MetaMask...</div>;
+  }
+
   if (!isMetaMaskInstalled) {
-    return <div className="text-sm text-red-600">MetaMask belum terpasang</div>;
+    return (
+      <div className="flex items-center gap-2">
+        <div className="text-sm text-red-600">MetaMask belum terpasang</div>
+        <a
+          href="https://metamask.io/download/"
+          target="_blank"
+          rel="noreferrer"
+          className="px-3 py-1 rounded border border-black text-sm"
+        >
+          Install MetaMask
+        </a>
+      </div>
+    );
   }
 
   return (

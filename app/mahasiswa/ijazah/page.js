@@ -49,9 +49,9 @@ function getIjazahHash(ijz) {
 function buildVerificationUrl(hash) {
   if (!hash) return null;
   if (typeof window !== "undefined") {
-    return `${window.location.origin}/verifikasi?hash=${hash}`;
+    return `${window.location.origin}/verifikasi?ref=${hash}`;
   }
-  return `/verifikasi?hash=${hash}`;
+  return `/verifikasi?ref=${hash}`;
 }
 
 function getDownloadUrl(ijz) {

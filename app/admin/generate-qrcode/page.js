@@ -9,9 +9,9 @@ import QRCode from "react-qr-code";
 function buildVerificationUrl(ijazahHash) {
   if (!ijazahHash) return "";
   if (typeof window !== "undefined") {
-    return `${window.location.origin}/verifikasi?hash=${ijazahHash}`;
+    return `${window.location.origin}/verifikasi?ref=${ijazahHash}`;
   }
-  return `/verifikasi?hash=${ijazahHash}`;
+  return `/verifikasi?ref=${ijazahHash}`;
 }
 
 export default function GenerateQrPage() {

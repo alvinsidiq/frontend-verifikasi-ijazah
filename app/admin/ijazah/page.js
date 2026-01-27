@@ -6,6 +6,10 @@ import AppLayout from "../../../components/layout/AppLayout";
 import RequireRole from "../../../components/auth/RequireRole";
 import { apiGet, apiDelete, apiPost } from "../../../lib/api";
 import WalletConnectButton from "../../../components/WalletConnectButton";
+import { useWeb3 } from "../../../context/Web3Context";
+import { getIjazahContract } from "../../../lib/ijazahContract";
+import { buildInputIjazahFromDb } from "../../../lib/ijazahMapper";
+import { sendTx } from "../../../lib/tx";
 
 async function fetchNomorHash(nomorIjazah) {
   const res = await apiGet(`/ijazah/hash-nomor?nomor=${encodeURIComponent(nomorIjazah)}`);
@@ -118,6 +122,7 @@ const STATUS_OPTIONS = [
 export default function IjazahPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { address, isOnMonad, provider } = useWeb3();
 
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
@@ -216,6 +221,79 @@ export default function IjazahPage() {
     }
   }
 
+  async function handleCreateOnChain(ijz) {
+    try {
+      if (!provider) {
+        window.alert("MetaMask belum terdeteksi.");
+        return;
+      }
+      if (!address) {
+        window.alert("Wallet belum connect. Klik Connect Wallet dulu.");
+        return;
+      }
+      if (!isOnMonad) {
+        window.alert("Silakan switch ke Monad Testnet dulu.");
+        return;
+      }
+
+      const ipfsStatus = (ijz.ipfsStatus || "NOT_UPLOADED").toString().toUpperCase();
+      if (!ijz.ipfsUri || ipfsStatus !== "READY") {
+        window.alert("IPFS belum READY. Upload IPFS dulu.");
+        return;
+      }
+
+      const signer = await provider.getSigner();
+      const contract = getIjazahContract(signer);
+      const input = buildInputIjazahFromDb(ijz);
+
+      if (!input.nomorIjazah) throw new Error("nomorIjazah kosong");
+      if (!input.linkIjazah.startsWith("ipfs://")) {
+        throw new Error("linkIjazah harus ipfs://CID");
+      }
+
+      const { tx } = await sendTx(contract.buatIjazah(input), {
+        onHash: (h) => console.log("txHash buatIjazah:", h),
+      });
+
+      window.alert(`Sukses buatIjazah on-chain.\\nTx: ${tx.hash}`);
+    } catch (e) {
+      console.error(e);
+      window.alert(e?.shortMessage || e?.message || String(e));
+    }
+  }
+
+  async function handleApproveAdminOnChain(ijz) {
+    try {
+      if (!provider) {
+        window.alert("MetaMask belum terdeteksi.");
+        return;
+      }
+      if (!address) {
+        window.alert("Wallet belum connect. Klik Connect Wallet dulu.");
+        return;
+      }
+      if (!isOnMonad) {
+        window.alert("Silakan switch ke Monad Testnet dulu.");
+        return;
+      }
+      if (!ijz.nomorIjazah) {
+        window.alert("Nomor ijazah kosong.");
+        return;
+      }
+
+      const signer = await provider.getSigner();
+      const contract = getIjazahContract(signer);
+      const { tx } = await sendTx(contract.setujuiOlehAdmin(ijz.nomorIjazah), {
+        onHash: (h) => console.log("txHash approve admin:", h),
+      });
+
+      window.alert(`Sukses setujuiOlehAdmin.\\nTx: ${tx.hash}`);
+    } catch (e) {
+      console.error(e);
+      window.alert(e?.shortMessage || e?.message || String(e));
+    }
+  }
+
   async function handlePublishOnchain(ijazah) {
     const { id, nomorIjazah } = ijazah;
     const confirmPublish = window.confirm(
@@ -291,7 +369,7 @@ export default function IjazahPage() {
         return;
       }
 
-      const verifyUrl = `${window.location.origin}/verifikasi?hash=${hash}`;
+      const verifyUrl = `${window.location.origin}/verifikasi?ref=${hash}`;
 
       setQrValue(verifyUrl);
       setQrOpen(true);
@@ -398,6 +476,10 @@ export default function IjazahPage() {
                         statusValidasi === "TERVALIDASI" && ipfsStatus !== "READY";
                       const uploadingIpfs = ipfsStatus === "UPLOADING";
                       const isDraft = statusValidasi === "DRAFT";
+                      const canCreateOnchain =
+                        !!address && isOnMonad && ipfsStatus === "READY" && !!ijz.nomorIjazah;
+                      const canApproveAdminOnchain =
+                        !!address && isOnMonad && !!ijz.nomorIjazah;
                       const publishTitle =
                         !canPublish
                           ? statusValidasi !== "TERVALIDASI"
@@ -549,6 +631,51 @@ export default function IjazahPage() {
                               >
                                 {publishLabel}
                               </button>
+                              <div className="mt-2 pt-2 border-t border-gray-200">
+                                <div className="text-[10px] text-gray-500">
+                                  On-chain (MetaMask)
+                                </div>
+                                <div className="flex flex-col gap-1 mt-1">
+                                  <button
+                                    className={`px-2 py-1 rounded text-[11px] font-semibold transition ${
+                                      canCreateOnchain
+                                        ? "bg-indigo-600 text-white hover:bg-indigo-700"
+                                        : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                                    }`}
+                                    disabled={!canCreateOnchain}
+                                    onClick={() => handleCreateOnChain(ijz)}
+                                    title={
+                                      !address
+                                        ? "Wallet belum connect"
+                                        : !isOnMonad
+                                        ? "Switch ke Monad Testnet"
+                                        : ipfsStatus !== "READY"
+                                        ? "IPFS belum READY"
+                                        : "Buat ijazah di blockchain"
+                                    }
+                                  >
+                                    Create On-chain
+                                  </button>
+                                  <button
+                                    className={`px-2 py-1 rounded text-[11px] font-semibold transition ${
+                                      canApproveAdminOnchain
+                                        ? "bg-indigo-600 text-white hover:bg-indigo-700"
+                                        : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                                    }`}
+                                    disabled={!canApproveAdminOnchain}
+                                    onClick={() => handleApproveAdminOnChain(ijz)}
+                                    title={
+                                      !address
+                                        ? "Wallet belum connect"
+                                        : !isOnMonad
+                                        ? "Switch ke Monad Testnet"
+                                        : "Setujui oleh Admin di blockchain"
+                                    }
+                                  >
+                                    Approve Admin (On-chain)
+                                  </button>
+                                </div>
+                              </div>
                               {bc?.txHash && (
                                 <span className="text-[10px] text-gray-700 break-all">
                                   Tx: {bc.txHash}
